@@ -1,0 +1,64 @@
+#!/bin/bash
+if [[ "$1" = "" || "$2" = "" ]]
+then
+    echo "Missing args"
+    echo
+    echo "Usage: dpack [PATH1] [CMD] [compile]"
+    echo "PATH1   - Path of source or executable"
+    echo "CMD     - Name of installed script or executable"
+    echo "compile - Empty arg 3 means script, 'compile' means"
+    echo "          to compile the source before packaging"
+    exit 1
+fi
+
+read -p "Package = " PACK
+read -p "Version = " VER
+read -p "Achitec = " ARCH
+read -p "Size KB = " SZ
+
+mkdir -p "$2-v$VER-$ARCH/DEBIAN"
+mkdir -p "$2-v$VER-$ARCH/${PREFIX:0:27}/usr/bin/"
+touch "$2-v$VER-$ARCH/DEBIAN/control"
+
+echo
+if [ "$3" = "compile" ]
+then
+    gcc -O "$1" -o "$2-v$VER-$ARCH/${PREFIX:0:27}/usr/bin/$2"
+    if which termux-elf-cleaner > /dev/null
+    then
+        termux-elf-cleaner "$2-v$VER-$ARCH/${PREFIX:0:27}/usr/bin/$2"
+    fi
+else
+    cp "$1" "$2-v$VER-$ARCH/${PREFIX:0:27}/usr/bin/$2"
+fi
+
+echo "Package: $PACK
+Version: $VER
+Architecture: $ARCH
+Installed-Size: $SZ
+Maintainer: github.com/AvirukBasak
+Description: Another assembly simulator
+" > "$2-v$VER-$ARCH/DEBIAN/control"
+
+chmod 755 -R  "$2-v$VER-$ARCH"
+dpkg -b "$2-v$VER-$ARCH"
+chmod +x "$2-v$VER-$ARCH".deb
+
+echo
+echo "Enter 1 to upgrade"
+echo "Enter 2 to uninstall and install"
+read -p "Enter: "
+
+if [ "$REPLY" = 1 ]
+then
+    apt install ./"$2-v$VER-$ARCH".deb
+elif [ "$REPLY" = 2 ]
+then
+    apt remove "$PACK"
+    apt install ./"$2-v$VER-$ARCH".deb
+else
+    echo "Invalid option"
+    exit 1
+fi
+
+exit 0
